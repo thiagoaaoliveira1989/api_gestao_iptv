@@ -1,0 +1,47 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id    String @id @default(uuid())
+  name  String
+  email String @unique
+  phone String
+  info  Info[]
+
+  @@map("usuario")
+}
+
+model Server {
+  id    String  @id @default(uuid())
+  name  String
+  price Decimal
+  info  Info[]
+
+  @@map("servidor")
+}
+
+model Info {
+  id              String    @id @default(uuid())
+  creationDate    DateTime? @default(now())
+  expirationDate  DateTime?
+  monthlyFeeValue Decimal
+  appName         String?
+  deviceId        String?
+  deviceKey       String?
+  paymentStatus   Boolean   @default(false)
+  clientStatus    Int
+  numberOfScreens Int
+  userId          String
+  serverId        String
+  server          Server    @relation(fields: [serverId], references: [id])
+  user            User      @relation(fields: [userId], references: [id])
+
+  @@unique([userId, serverId])
+  @@map("informacoes")
+}
