@@ -8,10 +8,10 @@ datasource db {
 }
 
 model User {
-  id    String @id @default(uuid())
+  id    String  @id @default(uuid())
   name  String
-  email String @unique
-  phone String
+  email String? @unique
+  phone String? @unique
   info  Info[]
 
   @@map("usuario")
@@ -32,7 +32,7 @@ model Info {
   expirationDate  DateTime?
   monthlyFeeValue Decimal
   appName         String?
-  deviceId        String?
+  deviceId        String?   @unique
   deviceKey       String?
   paymentStatus   Boolean   @default(false)
   clientStatus    Int

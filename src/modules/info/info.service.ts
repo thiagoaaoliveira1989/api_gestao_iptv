@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { CreateInfoDto } from './dto/create-info.dto';
 import { UpdateInfoDto } from './dto/update-info.dto';
 import { PrismaService } from 'src/database/prisma.service';
@@ -15,6 +15,20 @@ export class InfoService {
     serverId: string,
   ): Promise<ResponseInfoDto> {
     const { expirationDate } = payload;
+
+    const normalizedServerDeviceId = payload.deviceId.toLowerCase();
+
+    const foundInfoDeviceId = await this.prisma.info.findFirst({
+      where: { deviceId: normalizedServerDeviceId },
+    });
+
+    if (foundInfoDeviceId) {
+      throw new HttpException(
+        'DeviceId já cadastrado em nossa base',
+        HttpStatus.CONFLICT,
+      );
+    }
+
     const dateFomated = detectDateFormat(expirationDate);
 
     const data = { ...payload, userId, serverId };
@@ -29,7 +43,7 @@ export class InfoService {
         userId: data.userId,
         expirationDate: dateFomated,
         appName: data.appName,
-        deviceId: data.deviceId,
+        deviceId: normalizedServerDeviceId,
         deviceKey: data.deviceKey,
       },
     });
@@ -52,6 +66,11 @@ export class InfoService {
 
   async findAll(): Promise<ResponseInfoDto[]> {
     const infos = await this.prisma.info.findMany({});
+
+    if (!infos || infos.length === 0) {
+      return [];
+    }
+
     return infos.map(
       (info) =>
         new ResponseInfoDto(
@@ -75,7 +94,11 @@ export class InfoService {
     const info = await this.prisma.info.findFirst({
       where: { id },
     });
-    if (!info) return null;
+
+    if (!info) {
+      throw new HttpException('Registro não encontrado', HttpStatus.NOT_FOUND);
+    }
+
     return new ResponseInfoDto(
       info.id,
       info.monthlyFeeValue,
@@ -93,6 +116,14 @@ export class InfoService {
   }
 
   async update(id: string, payload: UpdateInfoDto): Promise<ResponseInfoDto> {
+    const info = await this.prisma.info.findFirst({
+      where: { id },
+    });
+
+    if (!info) {
+      throw new HttpException('Registro não encontrado', HttpStatus.NOT_FOUND);
+    }
+
     const updatedInfo = await this.prisma.info.update({
       where: { id },
       data: {
@@ -122,7 +153,17 @@ export class InfoService {
     );
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(id: string): Promise<{ [key: string]: any }> {
+    const info = await this.prisma.info.findFirst({
+      where: { id },
+    });
+
+    if (!info) {
+      throw new HttpException('Registro não encontrado', HttpStatus.NOT_FOUND);
+    }
+
     await this.prisma.info.delete({ where: { id } });
+
+    return {};
   }
 }

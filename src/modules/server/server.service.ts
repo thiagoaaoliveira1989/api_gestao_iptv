@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { CreateServerDto } from './dto/create-server.dto';
 import { UpdateServerDto } from './dto/update-server.dto';
 import { PrismaService } from 'src/database/prisma.service';
@@ -10,34 +10,62 @@ export class ServerService {
   constructor(private prisma: PrismaService) {}
 
   async create(payload: CreateServerDto): Promise<ResponseServerDto> {
-    console.log(payload.name);
-    console.log(payload.price);
+    const normalizedServerName = payload.name.toLowerCase(); // Normaliza para minúsculas
+
+    const foundServer = await this.prisma.server.findFirst({
+      where: { name: normalizedServerName },
+    });
+
+    if (foundServer) {
+      throw new HttpException('Servidor já cadastrado', HttpStatus.CONFLICT);
+    }
 
     const server = new Server();
-    Object.assign(server, payload);
+    server.name = normalizedServerName; // Armazena o nome normalizado
+    server.price = payload.price;
+
     const newServer = await this.prisma.server.create({ data: server });
+
     return new ResponseServerDto(newServer.id, newServer.name, newServer.price);
   }
 
   async findAll(): Promise<ResponseServerDto[]> {
-    const servers = await this.prisma.server.findMany({});
-    return servers.map(
+    const foundServer = await this.prisma.server.findMany({});
+
+    if (!foundServer || foundServer.length === 0) {
+      return [];
+    }
+    return foundServer.map(
       (server) => new ResponseServerDto(server.id, server.name, server.price),
     );
   }
 
-  async findOne(id: string): Promise<ResponseServerDto | null> {
-    const server = await this.prisma.server.findFirst({
+  async findOne(id: string): Promise<ResponseServerDto> {
+    const foundServer = await this.prisma.server.findFirst({
       where: { id },
     });
-    if (!server) return null;
-    return new ResponseServerDto(server.id, server.name, server.price);
+    if (!foundServer) {
+      throw new HttpException('Servidor não encontrado', HttpStatus.NOT_FOUND);
+    }
+
+    return new ResponseServerDto(
+      foundServer.id,
+      foundServer.name,
+      foundServer.price,
+    );
   }
 
   async update(
     id: string,
     payload: UpdateServerDto,
   ): Promise<ResponseServerDto | null> {
+    const foundServer = await this.prisma.server.findFirst({
+      where: { id },
+    });
+    if (!foundServer) {
+      throw new HttpException('Servidor não encontrado', HttpStatus.NOT_FOUND);
+    }
+
     const updatedServer = await this.prisma.server.update({
       where: { id },
       data: {
@@ -53,7 +81,15 @@ export class ServerService {
     );
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(id: string): Promise<{ [key: string]: any }> {
+    const foundServer = await this.prisma.server.findFirst({
+      where: { id },
+    });
+    if (!foundServer) {
+      throw new HttpException('Servidor não encontrado', HttpStatus.NOT_FOUND);
+    }
+
     await this.prisma.server.delete({ where: { id } });
+    return {};
   }
 }

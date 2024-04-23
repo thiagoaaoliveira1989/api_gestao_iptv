@@ -51,7 +51,7 @@ export class InfoController {
   }
 
   @Delete(':id')
-  async remove(@Param('id') id: string): Promise<void> {
-    await this.infoService.remove(id);
+  async remove(@Param('id') id: string): Promise<{ [key: string]: any }> {
+    return await this.infoService.remove(id);
   }
 }
